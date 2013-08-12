@@ -1,0 +1,8 @@
+﻿<SettingsDisplayConfiguration>
+  <Identifier Name="ExternalToolJob" DisplayText="Externe Programme ausführen" Parent="Aufgaben">
+    <Setting Name="ExternalToolsOnOperationSurfaced" DisplayText="Bei Eingang" Category="Allgemein"
+             Editor="ObjectExpressionTypeEditor" EditorParameter="AlarmWorkflow.Shared.Core.Operation, AlarmWorkflow.Shared" />
+    <Setting Name="ExternalToolsAfterOperationStored" DisplayText="Nach Persistierung" Category="Allgemein"
+             Editor="ObjectExpressionTypeEditor" EditorParameter="AlarmWorkflow.Shared.Core.Operation, AlarmWorkflow.Shared" />
+  </Identifier>
+</SettingsDisplayConfiguration>

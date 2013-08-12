@@ -20,11 +20,11 @@ using AlarmWorkflow.Shared.Core;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("AlarmWorkflow.Windows.ExternalToolUIJob")]
+[assembly: AssemblyTitle("AlarmWorkflow.Job.ExternalTool")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("The AlarmWorkflow-Team")]
-[assembly: AssemblyProduct("AlarmWorkflow.Windows.ExternalToolUIJob")]
+[assembly: AssemblyProduct("AlarmWorkflow.Job.ExternalTool")]
 [assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -35,7 +35,7 @@ using AlarmWorkflow.Shared.Core;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("e90920fe-0a14-44d1-8cb1-514e0272d8ca")]
+[assembly: Guid("6bb31a0b-817d-49aa-a919-101dd0fd7e7f")]
 
 // Version information for an assembly consists of the following four values:
 //
