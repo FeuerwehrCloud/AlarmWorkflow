@@ -2,7 +2,7 @@
 
 <asp:Content ID="BodyContent" runat="server" ContentPlaceHolderID="MainContent" >
     
-    <div style="font-size: 60px; font-weight: 700; text-align: center; text-decoration: underline; width: 100%;">
+    <div style="font-size: 120px; font-weight: 700; text-align: center; text-decoration: underline; color: #222222;">
         Kein Alarm!
     </div>
      
@@ -13,7 +13,7 @@
             <asp:AsyncPostBackTrigger ControlID="_UpdateTimer" EventName="Tick" />
         </Triggers>
         <ContentTemplate>
-            <div style="font-size: 40px; font-weight: 700; text-align: center; width: 100%;">
+            <div style="font-size: 60px; font-weight: 700; text-align: center; width: 100%; color: #222222; margin-top: 30px;">
                 <asp:Label ID="LastUpdate" runat="server">
                     Letztes Update:
                 </asp:Label>

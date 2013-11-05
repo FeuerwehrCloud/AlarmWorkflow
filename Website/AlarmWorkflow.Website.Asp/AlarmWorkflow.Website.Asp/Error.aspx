@@ -20,10 +20,9 @@
        
                 </div>
             </ContentTemplate>
-        </asp:UpdatePanel>
-        <p style="color: #000000; font-size: x-large; text-align: center;">
-            Bitte starten Sie den Servie selbst neu oder informieren sie den Ihren 
-            Systemadministrator.</p>
+        </asp:UpdatePanel >
+        <p style="color: #000000; font-size: x-large; text-align: center; height: auto;">
+            Ursachen: Servicefehler -> Service neu starten; Textdecodierfehler -> Richtiges Faxformat bzw. mit besserer Qualität als Quelle verwenden!</p>
     </div>
     
 </asp:Content>

@@ -59,6 +59,7 @@ namespace AlarmWorkflow.Website.Asp
 
         #region Constants
 
+
         private const string OSMHead = "var map;" +
                                        "var layer_mapnik;" +
                                        "var layer_tah;" +
@@ -147,6 +148,18 @@ namespace AlarmWorkflow.Website.Asp
                                           "var geocoder = new google.maps.Geocoder();" +
                                           "function initialize() {";
 
+        private string FFName = "";
+        private string PLZ = ""; // zur ermittlung was überörtlich ist
+        private string colorFzFax = "Red";
+        private string colorFzAAO = "Orange";
+        private string colorFzFaxAAO = "Magenta";
+        private string showMessenger = "nein";
+        private int commentLengh = 160;
+        private string shortKeyword = "nein";
+        // ArrayList für Fahrzeuge erzeugen
+        System.Collections.ArrayList arrFz = new System.Collections.ArrayList();
+        System.Collections.ArrayList arrStichwort = new System.Collections.ArrayList();
+
         #endregion Constants
 
         #region Methods
@@ -169,19 +182,499 @@ namespace AlarmWorkflow.Website.Asp
             }
         }
 
+        ///<summary>
+        /// Liefert den Inhalt der Datei zurück.
+        ///</summary>
+        ///<param name="sFilename">Dateipfad</param>
+        public string ReadFile(String sFilename)
+        {
+            string sContent = "";
+
+            if (File.Exists(sFilename))
+            {
+                StreamReader myFile = new StreamReader(sFilename, System.Text.Encoding.Default);
+                sContent = myFile.ReadToEnd();
+                myFile.Close();
+            }
+            return sContent;
+        }
+
+        public void getReferenzParameter()
+        {
+            string sParamText = ReadFile(@"C:\inetpub\wwwroot\RefParam.txt");
+            string[] Param = sParamText.Split('#');
+            int l = Param.Length;
+            for (int i = 1; i < l; i++)
+            {
+
+                //Fahrzeugblock decodieren
+                if (Param[i].StartsWith("HomeParameter"))
+                {
+                    string[] sHomeParam = Param[i].Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    int anzHomeParam = sHomeParam.Length;
+                    for (int h = 1; h < anzHomeParam; h++)
+                    {
+                        string[] ParamValue;
+                        ParamValue = sHomeParam[h].Split(':');
+
+                        if (ParamValue[0].Trim() == "FFName")
+                        { FFName = ParamValue[1].Trim(); }
+                        if (ParamValue[0].Trim() == "PLZ")
+                        { PLZ = ParamValue[1].Trim(); }
+                        if (ParamValue[0].Trim() == "FarbeFzFax")
+                        {
+                            colorFzFax = ParamValue[1].Trim();
+                            colorFzAAO = ParamValue[1].Trim();
+                            colorFzFaxAAO = ParamValue[1].Trim();
+                        }
+                        if (ParamValue[0].Trim() == "FarbeFzAAO")
+                        { colorFzAAO = ParamValue[1].Trim(); }
+                        if (ParamValue[0].Trim() == "FarbeFzFaxAAO")
+                        { colorFzFaxAAO = ParamValue[1].Trim(); }
+                        if (ParamValue[0].Trim() == "Mitteiler_anzeigen")
+                        { showMessenger = ParamValue[1].Trim(); }
+                        if (ParamValue[0].Trim() == "KommentarLaenge")
+                        { commentLengh =  Convert.ToInt32(ParamValue[1].Trim()); }
+                        if (ParamValue[0].Trim() == "Stichwort_komprimieren")
+                        { shortKeyword  = ParamValue[1].Trim(); }
+
+                        //FFName = sHomeParam[1].Trim();
+                        //PLZ = sHomeParam[2].Trim();
+                        //if (sHomeParam.Length > 3)
+                        //{ colorFzFax = sHomeParam[3].Trim(); }
+                        //if (sHomeParam.Length > 4)
+                        //{ colorFzAAO = sHomeParam[4].Trim(); }
+                        //else
+                        //{ colorFzAAO = colorFzFax; }
+                        //if (sHomeParam.Length > 5)
+                        //{ colorFzFaxAAO = sHomeParam[5].Trim(); }
+                        //else
+                        //{ colorFzFaxAAO = colorFzFax; }
+
+                    }
+
+                }
+                //Fahrzeugblock decodieren
+                if (Param[i].StartsWith("Fahrzeuge"))
+                {
+                    arrFz.Clear();
+                    string[] sTextfzList = Param[i].Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    int anzFz = sTextfzList.Length;
+                    if (anzFz == 1)
+                    {
+                        //FZ_Info.Visible = false;
+                                         }
+                    else
+                    {
+                        for (int f = 1; f < anzFz; f++)
+                        {
+                            string[] sfz;
+                            sfz = sTextfzList[f].Split(',');
+                            if (sfz[0].Trim().Length > 0)
+                            {
+                                arrFz.Add(new csFzList(sfz[0].Trim(), sfz[2].Trim(), sfz[1].Trim(), 0, 0));
+                            }
+                        }
+                    }
+                          
+                }
+
+                //Schlagworte für AAo decodieren
+                if (Param[i].StartsWith("Stichworte"))
+                {
+                    arrStichwort.Clear();
+                    string[] sTextStichwList = Param[i].Split(new string[] { "\n", "\r\n" }, StringSplitOptions.RemoveEmptyEntries);
+                    int anzStichw = sTextStichwList.Length;
+                    for (int s = 1; s < anzStichw; s++)
+                    {
+                        string[] sStichwortLine;
+                        sStichwortLine = sTextStichwList[s].Split(';');
+                        if (sStichwortLine[0].Trim().Length > 0) //Stichwort
+                        {
+                            arrStichwort.Add(new csStichwort(sStichwortLine[0].Trim(), sStichwortLine[2].Trim(), sStichwortLine[1].Trim()));
+                        }
+                    }
+                }
+            }
+        }
+
+        private void setFzFields()
+        {
+            tcFZ1.Visible = false; tcFZ2.Visible = false; tcFZ3.Visible = false; tcFZ4.Visible = false;
+            tcFZ5.Visible = false; tcFZ6.Visible = false; tcFZ7.Visible = false; tcFZ8.Visible = false;
+
+            int anzFz = arrFz.Count;
+            for (int f = 1; f <= anzFz; f++)
+            {
+                if (f == 1)
+                {
+                    tcFZ1.BackColor = Color.LightGray;
+                    lbFZ1.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ1.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ1.Visible = true;
+                }
+                if (f == 2)
+                {
+                    tcFZ2.BackColor = Color.LightGray;
+                    lbFZ2.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ2.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ2.Visible = true;
+                }
+                if (f == 3)
+                {
+                    tcFZ3.BackColor = Color.LightGray;
+                    lbFZ3.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ3.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ3.Visible = true;
+                }
+                if (f == 4)
+                {
+                    tcFZ4.BackColor = Color.LightGray;
+                    lbFZ4.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ4.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ4.Visible = true;
+                }
+                if (f == 5)
+                {
+                    tcFZ5.BackColor = Color.LightGray;
+                    lbFZ5.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ5.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ5.Visible = true;
+                }
+                if (f == 6)
+                {
+                    tcFZ6.BackColor = Color.LightGray;
+                    lbFZ6.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ6.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ6.Visible = true;
+                }
+                if (f == 7)
+                {
+                    tcFZ7.BackColor = Color.LightGray;
+                    lbFZ7.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ7.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ7.Visible = true;
+                }
+                if (f == 8)
+                {
+                    tcFZ8.BackColor = Color.LightGray;
+                    lbFZ8.ForeColor = Color.FromArgb(186, 186, 186);
+                    lbFZ8.Text = (arrFz[f - 1] as csFzList).sTyp.ToString() + " \r\n " + (arrFz[f - 1] as csFzList).sNr.ToString();
+                    tcFZ8.Visible = true;
+                }
+            }
+        }
+
         private void SetAlarmContent(Operation operation)
         {
-            DebugLabel.ForeColor = Color.Red;
-            DebugLabel.Text = DateTime.Now.ToString(CultureInfo.InvariantCulture);
-            DebugLabel.Text += " - " + operation.OperationGuid.ToString();
-            DebugLabel.Text += " - " + operation.Id;
-            DebugLabel.Text += " - " + operation.IsAcknowledged;
-            lbPicture.Text = operation.Picture;
-            lbOther.Text = operation.Comment + " " + operation.OperationPlan;
-            lbKeyword.Text = operation.Keywords.ToString();
-            lbAddress.Text = operation.Einsatzort.Street + " " + operation.Einsatzort.StreetNumber + " " + operation.Einsatzort.ZipCode + " " + operation.Einsatzort.City;
-            lbObject.Text = operation.Einsatzort.Property;
-            lbResources.Text = operation.Resources.ToString("{FullName} {RequestedEquipment} ", null);
+            try
+            {
+                string sImSchutzbereich = "a";
+                getReferenzParameter();
+                DebugLabel.ForeColor = Color.Red;
+                DebugLabel.Text = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                DebugLabel.Text += " - " + operation.OperationGuid.ToString();
+                DebugLabel.Text += " - " + operation.Id;
+                DebugLabel.Text += " - " + operation.IsAcknowledged;
+                
+                lbSchlagwort.Text = operation.Keywords.ToString();                
+                if (shortKeyword == "ja")
+                {
+                    lbSchlagwort.Text = lbSchlagwort.Text.Replace(", Stichwort:", ",");
+                    lbSchlagwort.Text = lbSchlagwort.Text.Replace("Stichwort:","");                    
+                }
+
+                lbSchlagwort.ForeColor = Color.Black;
+                tcSchlagwort.BackColor = Color.LightGreen;
+                if (operation.Priority != null)
+                {
+                    tclbPrio.Visible = true;
+                    tcPrio.Visible = true;
+                    lbPrio.Text = operation.Priority.ToString();
+                    lbPrio.ForeColor = Color.Black;
+                    tcPrio.BackColor = Color.White;
+                    lblPrio.ForeColor = Color.Black;
+                    tclbPrio.BackColor = Color.White;
+                    //Wenn Prio = 1 dann Farbig hervorheben
+                    if (lbPrio.Text.Contains("1"))
+                    {
+                        tcPrio.BackColor = Color.Blue;
+                        lbPrio.ForeColor = Color.Red;
+                        lblPrio.ForeColor = Color.Red;
+                        tclbPrio.BackColor = Color.Blue;
+                    }
+                }
+
+                else
+                {
+                    lbPrio.Text = "0";
+                    tcPrio.Visible = false;
+                    tclbPrio.Visible = false;
+                }
+               
+                
+                // Wenn Schlüsselwort Brand dann roter Hintergrund
+                //if (lbSchlagwort.Text.Contains("B:"))
+                if (operation.OperationNumber.ToString().StartsWith("B"))
+                {
+                    tcSchlagwort.BackColor = Color.FromArgb(255, 080, 048);
+                }
+                // Wenn Schlüsselwort THL dann blauer Hintergurnd
+                //if (lbSchlagwort.Text.Contains("T:"))
+                if (operation.OperationNumber.ToString().StartsWith("T"))
+                {
+                    tcSchlagwort.BackColor = Color.FromArgb(000, 000, 128);
+                    lbSchlagwort.ForeColor = Color.White;
+                }
+
+                lbSchlagwort.Font.Bold = true;
+                lbObjekt.Text = operation.Einsatzort.Property;
+                if (showMessenger == "ja")
+                { lbObjekt.Text = lbObjekt.Text + " Mitteiler: " + operation.Messenger.ToString(); }
+                lbObjekt.Font.Size = 20;
+                lbObjekt.Font.Bold = false;
+                tcObjekt.BackColor = Color.LightBlue;
+                lbBemerkung.Text = operation.Comment;
+                lbBemerkung.Font.Size = 24;
+                if (lbBemerkung.Text.Length > 85)
+                {
+                    lbBemerkung.Font.Size = 18;
+                    if (lbBemerkung.Text.Length > commentLengh+1)
+                    { lbBemerkung.Text = lbBemerkung.Text.Substring(0, commentLengh) + " ..."; }
+                }
+                lbBemerkung.Font.Bold = false;
+                lbBemerkung.ForeColor = Color.Black;
+                tcBemerkung.BackColor = Color.LightGreen;
+                tcAddress.BackColor = Color.LightBlue;
+                lbAddress.Text = operation.Einsatzort.Street + " " + operation.Einsatzort.StreetNumber;
+                lbAddress.Font.Bold = true;
+                tcAddress.BackColor = Color.LightYellow;
+
+                //Adressdaten aufbereiten; ggf. aufeinander folgende, gleich Ortsnamen unterdrücken
+                lbOrt.Text = operation.Einsatzort.ZipCode + " " + operation.Einsatzort.City;
+                //ggf führende Leerzeichen entfernen
+                lbOrt.Text = lbOrt.Text.Trim();
+                string[] words = lbOrt.Text.Split(' ');
+                int l = words.Length;
+                lbOrt.Text = words[0].ToString();
+                for (int i = 1; i < l; i++)
+                {
+                    if (!words[i].ToString().Contains(words[i - 1].ToString()))
+                    {
+                        lbOrt.Text = lbOrt.Text + " " + words[i].ToString();
+                    }
+                }
+
+                lbOrt.Font.Bold = true;
+                tcOrt.BackColor = Color.LightYellow;
+
+                //innerorts-außerorts KNZ setzen
+                if (lbOrt.Text.Contains(PLZ))
+                { sImSchutzbereich = "i"; }
+
+               
+                //Fahrzeuge+Ausrüstung nach den eigenen filtern.
+                string MyResourses = "";
+                lbResources.Text = operation.Resources.ToString("{FullName} & {RequestedEquipment} ;", null).Trim();
+                lbResources.Text = lbResources.Text.TrimEnd(';');
+                string[] Resources = lbResources.Text.Split(';');
+                lbResources.Text = "";
+                int k = Resources.Length;
+                for (int i = 0; i < k; i++)
+                {
+                    if (Resources[i].ToString().Contains(FFName))
+                    {
+                        string[] Geraet = Resources[i].ToString().Trim().Split('&');
+                        if (Geraet[1].Trim().Length > 0)
+                        {
+                            MyResourses = MyResourses + " " + Resources[i].ToString().TrimEnd().Replace("&","mit") + ";";
+                        }
+                    }
+                }
+                MyResourses = MyResourses.Trim();
+                lbResources.Text = MyResourses.Replace(FFName, "");
+
+                lbResources.Font.Bold = true;
+                lbResources.Font.Size = 20;
+                tcResources.BackColor = Color.LightBlue;
+
+                //Fahrzeuge Initialisieren: 
+                
+                setFzFields();
+
+                tcTimeLeft.BackColor = Color.White;
+                //Alarmzeit
+                //TimeSpan ts = Convert.ToDateTime(DateTime.Now) - Convert.ToDateTime(operation.TimestampIncome);
+
+                lbTimeLeft.ForeColor = Color.Black;
+                lbTimeLeft.Text = operation.Timestamp.ToString(@"HH\:mm");
+                //lbTimeLeft.Text = ts.ToString(@"mm\:ss");
+                lbTimeLeft.Font.Size = 22;
+                lbTimeLeft.Font.Bold = true;
+
+                
+                //angeforderte Fahrzeuge einblenden
+
+                int anzFz = arrFz.Count;
+                for (int f = 0; f < anzFz; f++)
+                {
+                    if (operation.Resources.ToString("{FullName} {RequestedEquipment} ;", null).Contains((arrFz[f] as csFzList).sFzBez.ToString()))
+                    {
+                        (arrFz[f] as csFzList).iAngefordert = 1;
+                    }
+                }
+
+                //Fz laut AAO setzen
+
+                for (int a = 0; a < arrStichwort.Count; a++)//Die liste der Stichworte durchgehen
+                {
+                    if (operation.Keywords.ToString().Contains((arrStichwort[a] as csStichwort).sStichwort))
+                        if (sImSchutzbereich == (arrStichwort[a] as csStichwort).sInerorts.ToString())
+                        {
+                            { SetAAOFz((arrStichwort[a] as csStichwort).sFzList); }
+                        }
+                }
+
+
+                //Fahrzeue anzeigen
+                SetAktivFZ();
+
+
+            }
+            catch 
+            {
+                Page page = this;
+                ServiceConnection.Instance.RedirectToErrorPage(ref page);
+            }
+        }
+        
+
+        private void SetAAOFz(string fzList)
+        {
+             for (int f = 0; f < arrFz.Count; f++)// für jedes Stichwort prüfen ob übereinstimmende FZ vorhanden und setzen
+                {
+                    if(fzList.Contains((arrFz[f] as csFzList ).sFzBez ))
+                    { (arrFz[f] as csFzList).iAAO = 1; }
+                }
+           
+        }
+
+        
+
+        private void SetAktivFZ()
+        {
+            Color ColAngefordert = Color.FromName(colorFzFax);
+            Color ColAAO = Color.FromName(colorFzAAO);
+            Color ColAngefordertAAO = Color.FromName(colorFzFaxAAO);
+            int anzFz = arrFz.Count;
+            for (int f = 1; f <= anzFz; f++)
+            {
+                if (f == 1)
+                {
+                    lbFZ1.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ1.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ1.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ1.BackColor = ColAAO; }
+                    }
+                }
+                if (f == 2)
+                {
+                    lbFZ2.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ2.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ2.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ2.BackColor = ColAAO; }
+                    }
+                }
+                if (f == 3)
+                {
+                    lbFZ3.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ3.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ3.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ3.BackColor = ColAAO; }
+                    }
+                }
+                if (f == 4)
+                {
+                    lbFZ4.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ4.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ4.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ4.BackColor = ColAAO; }
+                    }
+                }
+                if (f == 5)
+                {
+                    lbFZ5.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ5.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ5.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ5.BackColor = ColAAO; }
+                    }
+                }
+                if (f == 6)
+                {
+                    lbFZ6.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ6.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ6.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ6.BackColor = ColAAO; }
+                    }
+                }
+                if (f == 7)
+                {
+                    lbFZ7.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ7.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ7.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ7.BackColor = ColAAO; }
+                    }
+                }
+                if (f == 8)
+                {
+                    lbFZ8.ForeColor = Color.Black;
+                    if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                    { tcFZ8.BackColor = ColAngefordert; }
+                    if ((arrFz[f - 1] as csFzList).iAAO == 1)
+                    {
+                        if ((arrFz[f - 1] as csFzList).iAngefordert == 1)
+                        { tcFZ8.BackColor = ColAngefordertAAO; }
+                        else
+                        { tcFZ8.BackColor = ColAAO; }
+                    }
+                }
+
+            }
         }
 
         private void GetOperation(string id, out Operation operation)
@@ -348,8 +841,11 @@ namespace AlarmWorkflow.Website.Asp
 
         protected void UpdateTimer_Tick(object sender, EventArgs e)
         {
+
             Page page = this;
             ServiceConnection.Instance.CheckForUpdate(ref page);
+
+
         }
 
         /// <summary>
@@ -375,17 +871,7 @@ namespace AlarmWorkflow.Website.Asp
             }
             else
             {
-                try
-                {
-                    SetAlarmDisplay();
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogException(this, ex);
-
-                    Page page = this;
-                    ServiceConnection.Instance.RedirectToErrorPage(ref page);
-                }
+                SetAlarmDisplay();
             }
         }
 
